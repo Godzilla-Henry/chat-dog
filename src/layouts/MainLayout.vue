@@ -14,18 +14,43 @@ q-layout#layout(view='hHh Lpr lFf')
     :breakpoint='500' 
     bordered
   )
-    q-scroll-area.fit.q-py-md
+    q-item.q-py-sm
+      q-item-section.justify-center(top avatar)
+        q-btn(flat round color="primary" icon="sort")
+      q-item-section
+        q-input(dense rounded outlined label="filter")
+          template(v-slot:append)
+            q-btn(flat round color="grey" icon="search")
+    q-separator
+    q-scroll-area.userScroll
       q-list
         template(v-for='(user, index) in userList' :key='index')
           q-item.q-py-lg(clickable @click="openChat(user)" :active="user.id === curActive" active-class="curActiveClass")
             q-item-section.justify-center(top avatar)
               q-avatar(color='primary' size="md" text-color='white' icon='person')
+                q-badge(rounded floating color="green")
             q-item-section
               q-item-label {{ user.name }}
               q-item-label(caption lines='2' v-show="user.content") {{ user.content }}
             q-item-section(side top)
               q-item-label(caption v-show="user.content") {{ diffTime(user.contentTime) }} mins ago
           q-separator
+    q-separator
+    q-item.q-py-md
+      q-item-section.justify-center(top avatar)
+        q-avatar.q-mx-md(color='orange' size="md" text-color='white' icon='person')
+      q-item-section
+        q-item-label.text-weight-bold.text-primary {{myself}}
+        div
+          q-badge.q-mr-xs(rounded color="green" align="middle")
+          q-btn-dropdown(color="primary" size="12px" padding="0" flat label="上線中") 
+            q-list
+              q-item(clickable v-close-popup)
+                q-item-section
+                  q-item-label 上線中
+              q-item(clickable v-close-popup)
+                q-item-section
+                  q-item-label 離線
   // Wrapper Page
   q-page-container
     router-view
@@ -33,7 +58,7 @@ q-layout#layout(view='hHh Lpr lFf')
 
 <script lang="ts">
 import { useUser } from 'src/stores';
-import { defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import db from 'src/boot/firebase';
 import {
@@ -58,6 +83,8 @@ export default defineComponent({
     const userList = ref<any[]>([]);
 
     const curActive = ref('');
+
+    const myself = computed(() => userStore.getName);
 
     const openChat = (user: any) => {
       console.log('openChat');
@@ -148,6 +175,7 @@ export default defineComponent({
     return {
       userList,
       curActive,
+      myself,
       openChat,
       logout,
       diffTime,
@@ -160,6 +188,9 @@ export default defineComponent({
 #layout {
   .header {
     height: 50px;
+  }
+  .userScroll {
+    height: calc(100% - 140px);
   }
 }
 

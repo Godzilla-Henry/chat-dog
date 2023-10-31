@@ -11,7 +11,7 @@
     q-separator
 
     // Massage
-    q-card-section.main
+    q-scroll-area.main.q-pa-md(ref="scrollAreaRef")
       template(
         v-for="message in messageList"
       )
@@ -39,8 +39,18 @@
 import { useUser } from 'src/stores';
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getMessageList, sendMessage } from './useMessage';
+import { sendMessage } from './useMessage';
 import { formatTime } from 'src/Utils/useDayjs';
+import db from 'src/boot/firebase';
+import {
+  and,
+  collection,
+  onSnapshot,
+  or,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 
 export default defineComponent({
   name: 'IndexPage',
@@ -50,11 +60,14 @@ export default defineComponent({
     const myself = computed(() => userStore.getName);
     const toUser = computed(() => route.query.to);
 
-    const messageContent = ref();
-    const messageList = ref([]);
+    const scrollAreaRef = ref(null) as any;
+    const messageContent = ref('');
+    const messageList = ref([]) as any;
 
     const onSend = async () => {
       console.log('onSend');
+      // 防止空白訊息
+      if (messageContent.value == '') return;
       let message = {
         sender: myself.value,
         receiver: toUser.value,
@@ -65,13 +78,57 @@ export default defineComponent({
       await sendMessage(message);
     };
 
+    // 監聽訊息快照
+    const getMessageList = async (myself: any, toUser: any) => {
+      const q = query(
+        collection(db, 'chatMessage'),
+        or(
+          and(where('sender', '==', myself), where('receiver', '==', toUser)),
+          and(where('sender', '==', toUser), where('receiver', '==', myself))
+        ),
+        orderBy('datetime')
+      );
+      messageList.value = [];
+      const unsubscribe = await onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          const data = change.doc.data();
+          data.id = change.doc.id;
+          if (change.type === 'added') {
+            messageList.value.push(data);
+          }
+          if (change.type === 'modified') {
+            console.log('Modified');
+            // let index = users.findIndex((item: any) => item.id === data.id);
+            // Object.assign(users[index], data);
+          }
+          if (change.type === 'removed') {
+            console.log('Removed', data);
+            // let index = messageList.findIndex((item: any) => item.id === data.id);
+            // console.log('Delete index: ', index);
+            // messageList.splice(index, 1);
+          }
+          animateScroll();
+        });
+      });
+    };
+
+    const animateScroll = () => {
+      if (scrollAreaRef.value) {
+        console.log(scrollAreaRef.value.getScroll());
+        scrollAreaRef.value.setScrollPosition(
+          'vertical',
+          scrollAreaRef.value.getScroll().verticalSize,
+          300
+        );
+      }
+    };
+
     watch(
       () => [myself.value, toUser.value],
       async (newVal) => {
-        messageList.value = [];
-        await getMessageList(newVal[0], newVal[1], messageList.value);
+        await getMessageList(newVal[0], newVal[1]);
       },
-      { immediate: true }
+      { deep: true, immediate: true }
     );
 
     return {
@@ -79,8 +136,10 @@ export default defineComponent({
       toUser,
       messageContent,
       messageList,
+      scrollAreaRef,
       onSend,
       formatTime,
+      animateScroll,
     };
   },
 });
@@ -88,13 +147,14 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .messageContainer {
+  overflow-y: hidden;
   .header {
     height: 65px;
   }
 
   .main {
-    height: calc(100vh - 185px);
-    overflow-y: scroll;
+    height: calc(100vh - 190px);
+    overflow-x: hidden;
     .sender {
       .smallStatus {
         font-size: 10px;
