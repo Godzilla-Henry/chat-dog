@@ -8,6 +8,7 @@ interface IConfigState {
   email: string;
   address: string;
   describe: string;
+  online: boolean;
 }
 
 export default defineStore('user', {
@@ -18,6 +19,7 @@ export default defineStore('user', {
     email: '',
     address: '',
     describe: '',
+    online: false,
   }),
   getters: {
     getId: (state): string => state.id,
@@ -26,6 +28,7 @@ export default defineStore('user', {
     getEmail: (state): string => state.email,
     getAddress: (state): string => state.address,
     getDescribe: (state): string => state.describe,
+    getOnline: (state): boolean => state.online,
   },
   actions: {
     // info
@@ -36,6 +39,10 @@ export default defineStore('user', {
       this.email = userInfo.email;
       this.address = userInfo.address;
       this.describe = userInfo.describe;
+      this.online = userInfo.online;
+    },
+    act_setUserOnline(val: boolean) {
+      this.online = val;
     },
   },
   // Data persistence destination
@@ -44,7 +51,15 @@ export default defineStore('user', {
     strategies: [
       {
         storage: localStorage,
-        paths: ['id', 'name', 'phone', 'email', 'address', 'describe'],
+        paths: [
+          'id',
+          'name',
+          'phone',
+          'email',
+          'address',
+          'describe',
+          'online',
+        ],
       }, // accessToken字段用 localstorage存储
     ],
   },

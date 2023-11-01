@@ -35,5 +35,5 @@ export default store((/* { ssrContext } */) => {
 
 // Defined
 import useUser from './user';
-// import useGlobal from './global';
-export { useUser };
+import useGlobal from './global';
+export { useUser, useGlobal };

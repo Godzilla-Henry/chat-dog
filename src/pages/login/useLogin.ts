@@ -49,6 +49,13 @@ const login = async (loginForm: ILogin) => {
   const querySnapshot = await getDocs(q);
   console.log(querySnapshot.docs);
 
+  // Switch Online
+  const switchForm = {
+    id: querySnapshot.docs[0].id,
+    online: true,
+  };
+  switchUserOnline(switchForm);
+
   return new Promise((resolve, reject) => {
     if (querySnapshot.docs.length > 0) {
       const result = {
@@ -78,6 +85,7 @@ const register = async (registerForm: any) => {
     email: registerForm.email,
     address: '',
     describe: '',
+    online: false,
   });
 
   return new Promise((resolve, reject) => {
@@ -139,4 +147,40 @@ const editUserInfo = async (editForm: any) => {
   });
 };
 
-export { getOtherUsers, login, register, editUserInfo };
+const switchUserOnline = async (switchForm: any) => {
+  // Update
+  const editItem = doc(db, 'chatUsers', switchForm.id!);
+  await updateDoc(editItem, {
+    online: switchForm.online,
+  });
+  // Get
+  const docSnap = await getDoc(editItem);
+  if (docSnap.exists()) {
+    console.log('Document data:', docSnap.data());
+  } else {
+    // docSnap.data() will be undefined in this case
+    console.log('No such document!');
+  }
+
+  return new Promise((resolve, reject) => {
+    if (docSnap.exists()) {
+      const result = {
+        id: docSnap.id,
+        ...docSnap.data(),
+      };
+      resolve({
+        error: null,
+        result: result,
+        status: 'ok',
+      }); // 如果成功，调用 resolve 并传递结果
+    } else {
+      reject({
+        error: '切換時發生錯誤',
+        result: null,
+        status: 'failed',
+      }); // 如果失败，调用 reject 并传递错误信息
+    }
+  });
+};
+
+export { getOtherUsers, login, register, editUserInfo, switchUserOnline };

@@ -105,18 +105,22 @@ import { defineComponent, onMounted, ref } from 'vue';
 import { ILogin } from './type';
 import { login, register } from './useLogin';
 import { useRouter } from 'vue-router';
-import { useUser } from 'src/stores';
+import { useGlobal, useUser } from 'src/stores';
 
 export default defineComponent({
   setup() {
     const router = useRouter();
     const userStore = useUser();
+    const globalStore = useGlobal();
+
     const loginForm = ref<ILogin>({
       name: null,
       password: null,
     });
+    // Login
     const onSubmit = async () => {
       console.log('Submit');
+      globalStore.act_setLoading(true);
       await login(loginForm.value)
         .then((res: any) => {
           console.log(res);
@@ -127,12 +131,18 @@ export default defineComponent({
             email: res.result.email,
             address: res.result.address,
             describe: res.result.describe,
+            online: true,
           });
           router.push({ path: '/DoggyChat/Home' });
         })
         .catch((error) => {
           console.log(error);
           onReset();
+        })
+        .finally(() => {
+          setTimeout(() => {
+            globalStore.act_setLoading(false);
+          }, 700);
         });
     };
     const onReset = () => {
@@ -157,6 +167,7 @@ export default defineComponent({
       email: null,
     });
 
+    // Register
     const onRegister = () => {
       console.log('Register');
       register(registerForm.value)

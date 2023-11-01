@@ -28,10 +28,10 @@ q-layout#layout(view='hHh Lpr lFf')
           q-item.q-py-lg(clickable @click="openChat(user)" :active="user.id === curActive" active-class="curActiveClass")
             q-item-section.justify-center(top avatar)
               q-avatar(color='primary' size="md" text-color='white' icon='person')
-                q-badge(rounded floating color="green")
+                q-badge(rounded floating :color="user.online? 'green': 'grey'")
             q-item-section
               q-item-label {{ user.name }}
-              q-item-label(caption lines='2' v-show="user.content") {{ user.content }}
+              q-item-label(caption lines='2' v-show="user.content" :class="{'text-weight-bold': !user.contentIsRead && user.contentSender!=myself, 'text-primary': !user.contentIsRead  && user.contentSender!=myself}") {{ user.content }}
             q-item-section(side top)
               q-item-label(caption v-show="user.content") {{ diffTime(user.contentTime) }} mins ago
           q-separator
@@ -42,13 +42,13 @@ q-layout#layout(view='hHh Lpr lFf')
       q-item-section
         q-item-label.text-weight-bold.text-primary {{myself}}
         div
-          q-badge.q-mr-xs(rounded color="green" align="middle")
-          q-btn-dropdown(color="primary" size="12px" padding="0" flat label="上線中") 
+          q-badge.q-mr-xs(rounded :color="online? 'green': 'grey'" align="middle")
+          q-btn-dropdown(color="primary" size="12px" padding="0" flat :label="online? '上線中': '離線'") 
             q-list
-              q-item(clickable v-close-popup)
+              q-item(clickable :active="online" @click="changeOnline(true)")
                 q-item-section
                   q-item-label 上線中
-              q-item(clickable v-close-popup)
+              q-item(clickable :active="!online" @click="changeOnline(false)")
                 q-item-section
                   q-item-label 離線
   // Wrapper Page
@@ -71,19 +71,21 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { getOtherUsers } from 'src/pages/login/useLogin';
+import { getOtherUsers, switchUserOnline } from 'src/pages/login/useLogin';
 import { diffTime } from 'src/Utils/useDayjs';
+import { useQuasar } from 'quasar';
 
 export default defineComponent({
   name: 'MainLayout',
   components: {},
   setup() {
+    const $q = useQuasar();
     const userStore = useUser();
     const router = useRouter();
     const userList = ref<any[]>([]);
 
     const curActive = ref('');
-
+    const online = computed(() => userStore.getOnline);
     const myself = computed(() => userStore.getName);
 
     const openChat = (user: any) => {
@@ -95,7 +97,8 @@ export default defineComponent({
       });
     };
 
-    const logout = () => {
+    const logout = async () => {
+      await changeOnline(false);
       userStore.$reset();
       router.replace({ path: '/Login' });
     };
@@ -118,13 +121,31 @@ export default defineComponent({
           data.id = change.doc.id;
           if (change.type === 'added') {
             console.log('New', data);
+            userList.value[index].contentId = data.id;
+            userList.value[index].contentSender = data.sender;
             userList.value[index].content = data.content;
             userList.value[index].contentTime = data.datetime;
+            userList.value[index].contentIsRead = data.isRead;
+            if (data.sender != userStore.getName) {
+              $q.notify({
+                message: data.sender + '  : ' + data.content,
+                icon: 'announcement',
+                color: 'green',
+                position: 'top-right',
+                timeout: 1500,
+              });
+            }
           }
           if (change.type === 'modified') {
             console.log('Modified');
-            // let index = users.findIndex((item: any) => item.id === data.id);
-            // Object.assign(users[index], data);
+            let index = userList.value.findIndex(
+              (item: any) => item.contentId === data.id
+            );
+            userList.value[index].contentId = data.id;
+            userList.value[index].contentSender = data.sender;
+            userList.value[index].content = data.content;
+            userList.value[index].contentTime = data.datetime;
+            userList.value[index].contentIsRead = data.isRead;
           }
           if (change.type === 'removed') {
             console.log('Removed', data);
@@ -134,6 +155,29 @@ export default defineComponent({
           }
         });
       });
+    };
+
+    const changeOnline = (val: boolean) => {
+      const swicthForm = {
+        id: userStore.getId,
+        online: val,
+      };
+      switchUserOnline(swicthForm)
+        .then((res: any) => {
+          console.log(res);
+          userStore.act_setUserInfo({
+            id: res.result.id,
+            name: res.result.name,
+            phone: res.result.phone,
+            email: res.result.email,
+            address: res.result.address,
+            describe: res.result.describe,
+            online: res.result.online,
+          });
+        })
+        .catch((error: any) => {
+          console.log(error);
+        });
     };
 
     onMounted(async () => {
@@ -149,8 +193,10 @@ export default defineComponent({
             userList.value.push(data);
           }
           if (change.type === 'modified') {
-            // let index = users.findIndex((item: any) => item.id === data.id);
-            // Object.assign(users[index], data);
+            let index = userList.value.findIndex(
+              (item: any) => item.id === data.id
+            );
+            Object.assign(userList.value[index], data);
           }
           if (change.type === 'removed') {
             // let index = users.findIndex((item: any) => item.id === data.id);
@@ -176,9 +222,11 @@ export default defineComponent({
       userList,
       curActive,
       myself,
+      online,
       openChat,
       logout,
       diffTime,
+      changeOnline,
     };
   },
 });

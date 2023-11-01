@@ -74,6 +74,7 @@ export default defineComponent({
             email: res.result.email,
             address: res.result.address,
             describe: res.result.describe,
+            online: res.result.online,
           });
         })
         .catch((error) => {
